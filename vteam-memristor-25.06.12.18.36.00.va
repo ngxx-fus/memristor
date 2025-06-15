@@ -1,0 +1,105 @@
+`include "constants.vams"
+`include "disciplines.vams"
+
+/// Define a new unit for x-state
+nature state
+    access = stat;
+    units = "x1";
+    abstol = 1u;
+endnature
+
+discipline state_disc
+    potential state;
+enddiscipline
+
+/// Manual integration of state variable
+module memristor(p, n, xnode);
+    inout p, n;
+    electrical p, n;
+
+    output xnode;
+    state_disc xnode;
+
+    /// Parameters for the VVTEAM memristor model
+    parameter real Xon   = 1;
+    parameter real Xoff  = 0;
+    parameter real Xinit = 0.5;
+    parameter real Vth   = 1.744;
+    parameter real Vh    = 1.5726;
+    parameter real Ron   = 30k;
+    parameter real Roff  = 15G;
+    parameter real k     = 650;
+    parameter real alpha = 0.099999;
+    parameter real tau   = 1.0444;
+    parameter real beta  = 2.14262;
+
+    /// Time step for manual integration.
+    /// Be careful when adjusting this!
+    parameter real dt = 1e-10;
+
+    /// Local variables
+    real x, dxdt, t_decay, eqiv_res;
+
+    analog function bounded;
+        input value, lower, upper;
+        real value, lower, upper;
+        if (value < lower)
+            bounded = lower;
+        else if (value > upper)
+            bounded = upper;
+        else
+            bounded = value;
+    endfunction
+
+    analog function dxdt_decay;
+        input   t;    input current_x;
+        real    t;    real  current_x;
+
+        begin
+            if (t > 0)
+                dxdt_decay = (-1 * current_x * beta * pow(t / tau, beta - 1) / tau);
+            else
+                dxdt_decay = 0;
+        end
+    endfunction
+
+    analog function dxdt_growth;
+        input current_Vpn; real current_Vpn;
+        dxdt_growth = k * pow((current_Vpn / Vth) - 1, alpha);
+    endfunction
+
+    analog begin
+        /// Initialize state at simulation start
+        @(initial_step) begin
+            x = Xinit;
+            t_decay = 0;
+        end
+
+        /// Update dx/dt based on input voltage
+        if (V(p, n) < Vh) begin
+            t_decay = t_decay + dt;
+            dxdt = dxdt_decay(t_decay, x);
+        end else begin
+            t_decay = 0;
+            if (V(p, n) > Vth) begin
+                dxdt = dxdt_growth(V(p, n));
+                t_decay = 0;
+            end else begin
+                dxdt = 0;
+            end
+        end
+
+        /// Manually integrate to update x
+        x = bounded(x + dxdt * dt, Xoff, Xon);
+        
+        
+        /// Update terminal behavior using state-dependent resistance
+        eqiv_res = (Ron + (((Roff - Ron) / (Xoff - Xon)) * (x - Xon)));
+        V(p, n) <+  eqiv_res * I(p, n);
+        
+        /// Update xnode
+        stat(xnode) <+ x;
+
+    end
+
+endmodule

@@ -1,0 +1,185 @@
+`include "constants.vams"
+`include "disciplines.vams"
+
+/// Define a new unit for x-state
+nature state
+    access = stat;
+    units = "x1";
+    abstol = 1u;
+endnature
+/// Define disc
+discipline state_disc
+    potential state;
+enddiscipline
+/// Manual integration of state variable
+module memristor(p, n, xnode);
+    inout p, n;
+    electrical p, n;
+
+    output xnode;
+    state_disc xnode;
+
+    /// Parameters for the VVTEAM memristor model
+    parameter real Xon   = 1;
+    parameter real Xoff  = 0;
+    parameter real Xinit = 0.5;
+    parameter real Vth   = 1.744;
+    parameter real Vh    = 1.5726 ;
+    parameter real Ron   = 30k;
+    parameter real Roff  = 15G;
+    parameter real k     = 650;
+    parameter real alpha = 0.09999 ;
+    parameter real tau   = 1.0444;
+    parameter real beta  = 2.14262;
+    parameter real Ipn_max  = 3.5u;
+    parameter real Inp_max  = 3.5u;
+    
+    /// Define phase id
+    parameter real __GROWTH       =   0;
+    parameter real __TRANSITION   =   1;
+    parameter real __DECAY        =   2;
+
+    /// Local variables
+    real x;
+    real new_x;
+    real phase;
+    real I_calc;
+    real t_phase;
+    real eqiv_res;
+    real t_phase_start;
+    real x_last_phase;
+
+    /// bounded value
+    analog function real bounded;
+        input   __value, __lower, __upper;
+        real    __value, __lower, __upper;
+        if (__value < __lower)
+            bounded = __lower;
+        else if (__value > __upper)
+            bounded = __upper;
+        else
+            bounded = __value;
+    endfunction
+
+    /// compute x_decay
+    analog function real x_decay;
+        input   __t, __x0;
+        real    __t, __x0;
+        real    __new_x;
+        begin
+            if (__t == 0) begin
+                __new_x = __x0;
+            end else begin 
+                __new_x = - __x0 * beta * pow(tau, -beta) * pow(__t, beta) + __x0;
+            end
+            if (__new_x < Xoff) __new_x = Xoff; else __new_x = __new_x;
+            x_decay = __new_x;
+
+        end
+    endfunction
+
+    /// compute x_growth 
+    analog function real x_growth;
+        input   __t, __x0, __cur_Vpn;
+        real    __t, __x0, __cur_Vpn;
+        real    __new_x;
+        begin
+            if (__t == 0) begin
+                __new_x = __x0;
+                end else begin 
+                    __new_x = (k * pow((__cur_Vpn / Vth) - 1, alpha) * __t) + __x0;
+                end
+                if (__new_x > Xon) __new_x = Xon; else __new_x = __new_x;
+                x_growth = __new_x;
+        end
+    endfunction
+
+    analog begin
+        /// Initialize state at simulation start
+        @(initial_step) begin
+            t_phase_start   = 0;
+            t_phase         = 0;
+            x               = Xinit;
+            phase           = __TRANSITION;
+        end
+
+        /// Detect current phase and update t_phase_start
+        if (V(p, n) < Vh) begin
+            if (phase != __DECAY) begin
+                t_phase_start   = $abstime;
+                x_last_phase    = x;
+            end
+            t_phase = $abstime - t_phase_start;
+            phase = __DECAY;
+        end else begin
+            if(V(p, n) > Vth) begin
+                if (phase != __GROWTH) begin
+                    t_phase_start   = $abstime;
+                    x_last_phase    = x;
+                end
+                t_phase = $abstime - t_phase_start;
+                phase = __GROWTH;
+            end else begin
+                if (phase != __TRANSITION) begin
+                    t_phase_start   = $abstime;
+                    x_last_phase    = x;
+                end
+                t_phase = $abstime - t_phase_start;
+                phase = __TRANSITION;
+            end
+        end
+
+        /// Compute new value of X
+        if (phase == __GROWTH) begin
+            new_x = x_growth(t_phase, x_last_phase, V(p, n));
+            if (new_x > x) x = new_x;
+        end
+        if (phase == __DECAY) begin
+            new_x = x_decay(t_phase, x_last_phase);
+            if (new_x < x) x = new_x;
+        end
+        if (phase == __TRANSITION) begin
+            x = x; /// unchanged!
+        end
+
+        /// Update resistance
+        eqiv_res = (Ron + (((Roff - Ron) / (Xoff - Xon)) * (x - Xon)));
+
+        /// Compute current and update current
+        I_calc   = bounded((V(p, n)/eqiv_res), -Inp_max, Ipn_max);
+        I(p,n) <+ I_calc;
+
+        /// Update xnode
+        stat(xnode) <+ x;
+
+    end
+endmodule
+
+
+/***Legacy
+
+    /// 0: Bypass
+    /// 1: Hold up  (pass greater value)
+    /// 2: Hold down(pass lower value)
+    analog function real value_trap;
+        input   new_value, old_value, mode;
+        real    new_value, old_value, mode;
+        begin
+            if( mode == 0 ) begin 
+                value_trap = new_value;
+            end
+            if( mode == 1) begin
+                if(old_value < new_value)
+                    value_trap = new_value;
+                else
+                    value_trap = old_value;
+            end
+            if( mode == 2) begin
+                if(new_value < old_value)
+                    value_trap = new_value;
+                else
+                    value_trap = old_value;
+            end
+        end
+    endfunction
+*/
