@@ -153,9 +153,16 @@ endmodule
 # Result
 
 ## Waveform with tau=10m
+
 ![alt text](imgs/image.png)
 
-## 
+## Fitting to VTEAM
+
+![alt text](imgs/image-1.png)
+
+![alt text](imgs/image-2.png)
+
+![alt text](imgs/image-3.png)
 
 # Version notes
 
