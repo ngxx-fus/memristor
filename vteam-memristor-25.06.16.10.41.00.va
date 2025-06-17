@@ -32,8 +32,7 @@ module memristor(p, n, xnode);
     parameter real alpha = 0.099999;
     parameter real tau   = 1.0444;
     parameter real beta  = 2.14262;
-    parameter real Ipn_max  = 3.5u;
-    parameter real Inp_max  = 3.5u;
+    parameter real Imax  = 3.5u;
 
     /// User must specify dt same as max step size in
     /// transient analysis & must be at least 3 orders
@@ -123,7 +122,7 @@ module memristor(p, n, xnode);
         eqiv_res = (Ron + (((Roff - Ron) / (Xoff - Xon)) * (x - Xon)));
         
         /// Compute current and update current
-        I_calc   = bounded((V(p, n)/eqiv_res), -Inp_max, Ipn_max);
+        I_calc = (V(p, n) / eqiv_res) / (1 + abs(V(p, n) / (Imax * eqiv_res)));
         I(p,n) <+ I_calc;
 
         /// Update xnode
