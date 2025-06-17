@@ -150,23 +150,6 @@ endmodule
 - Time-step: The time step \<dt\> same to the max-step and must be at least 3 orders smaller than T period of the source.
 - UserCommand (ADE/Cadence Virtuoso): `-ac 0`
 
-## Model's params
-
-- Ron       : 30K
-- Roff      : 1M
-- Vth       : -0.2
-- Vh        : 0.02
-- alpha     : 0.099999
-- beta      : 2.14262
-- tau       : 10m           (s)
-- k         : 650
-- Xon       : 1
-- Xoff      : 0
-- Xinit     : 0
-- Ipn_max   : 1             (A)
-- Inp_max   : 1             (A)
-- dt        : 0.0001/F      (s)
-
 # Result
 
 ## Waveform with tau=10m
