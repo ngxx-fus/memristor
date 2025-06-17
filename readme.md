@@ -153,7 +153,7 @@ endmodule
 # Result
 
 ## Waveform with tau=10m
-![alt text](imgs/image)
+![alt text](imgs/image.png)
 
 ## 
 
