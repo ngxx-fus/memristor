@@ -39,8 +39,7 @@ module memristor(p, n, xnode);
     parameter real alpha = 0.099999;
     parameter real tau   = 1.0444;
     parameter real beta  = 2.14262;
-    parameter real Ipn_max  = 3.5u;
-    parameter real Inp_max  = 3.5u;
+    parameter real Imax  = 11u;
 
     /// User must specify dt same as max step size in
     /// transient analysis & must be at least 3 orders
@@ -54,6 +53,14 @@ module memristor(p, n, xnode);
     /// Local variables
     real x, dxdt, t_decay, eqiv_res, I_calc;
     real delta_t, t_last_compute;
+
+	analog function real soft_bounded;
+		input __value, __max_absolute;
+		real  __value, __max_absolute;
+		begin
+			soft_bounded = __value / (1 + abs(__value / __max_absolute));
+		end
+	endfunction
 
     analog function real bounded;
         input __value, __lower, __upper;
@@ -130,16 +137,16 @@ module memristor(p, n, xnode);
         eqiv_res = (Ron + (((Roff - Ron) / (Xoff - Xon)) * (x - Xon)));
         
         /// Compute current and update current
-        I_calc   = bounded((V(p, n)/eqiv_res), -Inp_max, Ipn_max);
-        I(p,n) <+ I_calc;
+        I_calc = soft_bounded(V(p, n) / eqiv_res, Imax * eqiv_res);
+		I(p,n) <+ I_calc;
 
         /// Update xnode
         stat(xnode) <+ x;
 
-
     end
 
 endmodule
+
 ```
 
 
@@ -162,7 +169,7 @@ endmodule
 
 ![alt text](imgs/image-2.png)
 
-![alt text](imgs/image-3.png)
+![alt text](imgs/image-.png)
 
 # Version notes
 
