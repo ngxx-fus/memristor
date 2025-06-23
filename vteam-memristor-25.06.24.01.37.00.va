@@ -51,7 +51,6 @@ module memristor(p, n, xnode);
 		input __value, __max_absolute;
 		real  __value, __max_absolute;
 		begin
-			/// soft_bounded = __value / (1 + abs(__value / __max_absolute));
 			soft_bounded = __max_absolute*tanh(__value/__max_absolute);
 		end
 	endfunction
@@ -135,9 +134,6 @@ module memristor(p, n, xnode);
 
         /// Update xnode
         stat(xnode) <+ x;
-
-		/// LOG
-		/// $strobe("t = %g | Vpn = %g | x = %g | R = %g", $abstime, V(p, n), x, eqiv_res);
 
     end
 
