@@ -24,15 +24,15 @@ module memristor(p, n, xnode);
     parameter real Xon   = 1;
     parameter real Xoff  = 0;
     parameter real Xinit = 0.5;
-    parameter real Vth   = 1.744;
-    parameter real Vh    = 1.5726;
-    parameter real Ron   = 30k;
-    parameter real Roff  = 15G;
-    parameter real k     = 650;
-    parameter real alpha = 0.099999;
-    parameter real tau   = 1.0444;
-    parameter real beta  = 2.14262;
-    parameter real Imax  = 11u;
+    parameter real Vth   = 0.02;
+    parameter real Vh    = -0.2;
+    parameter real Ron   = 2K;
+    parameter real Roff  = 5M;
+    parameter real k     = 5e7;
+    parameter real alpha = 3;
+    parameter real beta  = 1;
+    parameter real tau   = 56p;
+    parameter real Imax  = 3.5m;
 
     /// User must specify dt same as max step size in
     /// transient analysis & must be at least 3 orders
@@ -51,7 +51,8 @@ module memristor(p, n, xnode);
 		input __value, __max_absolute;
 		real  __value, __max_absolute;
 		begin
-			soft_bounded = __value / (1 + abs(__value / __max_absolute));
+			/// soft_bounded = __value / (1 + abs(__value / __max_absolute));
+			soft_bounded = __max_absolute*tanh(__value/__max_absolute);
 		end
 	endfunction
 
@@ -129,14 +130,15 @@ module memristor(p, n, xnode);
         /// Update resistance
         eqiv_res = (Ron + (((Roff - Ron) / (Xoff - Xon)) * (x - Xon)));
         
-        /// Compute current and update current
-		I(p,n) <+ soft_bounded(V(p, n) / eqiv_res, Imax);
+        /// Compute current and update 
+		I(p,n) <+ soft_bounded(V(p, n) / eqiv_res, Imax);;
 
         /// Update xnode
         stat(xnode) <+ x;
 
+		/// LOG
+		/// $strobe("t = %g | Vpn = %g | x = %g | R = %g", $abstime, V(p, n), x, eqiv_res);
 
     end
 
 endmodule
-
